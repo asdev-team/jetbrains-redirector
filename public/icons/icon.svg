@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="128" height="128" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Градиент фона как в оригинале -->
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6343F5;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#4A30C4;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Фон: скруглённый квадрат (как в оригинале) -->
+  <path d="M18.5 3.5L3.5 18.5C1.5 20.5 0 23.5 0 26.5V56.5C0 59 2 61 4.5 61H32.5C35.5 61 38.5 59.5 40.5 57.5L55.5 42.5C57.5 40.5 59 37.5 59 34.5V4.5C59 2 57 0 54.5 0H26.5C23.5 0 20.5 1.5 18.5 3.5Z" 
+        fill="url(#bgGradient)"/>
+  
+  <!-- Чёрный квадрат внутри (как в оригинале) -->
+  <rect x="7" y="14" width="36" height="36" rx="2" fill="#1A1A1A"/>
+  
+  <!-- Белая полоса (как в оригинале) -->
+  <rect x="11" y="42" width="28" height="4" rx="1" fill="#FFFFFF"/>
+  
+  <!-- Линия редиректа (зелёная, простая без теней) -->
+  <path d="M48 18 L58 8" 
+        fill="none" 
+        stroke="#10B981" 
+        stroke-width="3" 
+        stroke-linecap="round"/>
+  
+  <!-- Дополнительная маленькая линия для акцента -->
+  <path d="M50 22 L56 16" 
+        fill="none" 
+        stroke="#10B981" 
+        stroke-width="2.5" 
+        stroke-linecap="round" 
+        opacity="0.8"/>
+</svg>

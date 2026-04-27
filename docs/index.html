@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JetBrains URL Redirector — Обход блокировок плагинов JetBrains</title>
+  <meta name="description" content="Автоматический обход блокировок для загрузки плагинов JetBrains через зеркальные серверы downloads.marketplace и download-cdn">
+  
+  <!-- Fonts: Space Grotesk + DM Sans (Modern Tech Stack) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['DM Sans', 'system-ui', 'sans-serif'],
+            display: ['Space Grotesk', 'system-ui', 'sans-serif'],
+          },
+          colors: {
+            primary: {
+              50: '#F0F9FF',
+              100: '#E0F2FE',
+              400: '#38BDF8',
+              500: '#0EA5E9',
+              600: '#0284C7',
+              700: '#0369A1',
+            },
+            accent: {
+              500: '#F97316',
+              600: '#EA580C',
+            },
+            dark: {
+              900: '#0F172A',
+              800: '#1E293B',
+              700: '#334155',
+            }
+          },
+          animation: {
+            'gradient-x': 'gradient-x 15s ease infinite',
+            'float': 'float 6s ease-in-out infinite',
+            'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+          },
+          keyframes: {
+            'gradient-x': {
+              '0%, 100%': {
+                'background-size': '200% 200%',
+                'background-position': 'left center'
+              },
+              '50%': {
+                'background-size': '200% 200%',
+                'background-position': 'right center'
+              },
+            },
+            'float': {
+              '0%, 100%': { transform: 'translateY(0px)' },
+              '50%': { transform: 'translateY(-20px)' },
+            },
+          },
+        }
+      }
+    }
+  </script>
+  
+  <style>
+    html { scroll-behavior: smooth; }
+    
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+    
+    /* Animated Grid Background */
+    .grid-bg {
+      position: fixed;
+      inset: 0;
+      background-image: 
+        linear-gradient(rgba(14, 165, 233, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(14, 165, 233, 0.05) 1px, transparent 1px);
+      background-size: 50px 50px;
+      pointer-events: none;
+      z-index: -2;
+    }
+    
+    .dark .grid-bg {
+      background-image: 
+        linear-gradient(rgba(14, 165, 233, 0.08) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(14, 165, 233, 0.08) 1px, transparent 1px);
+    }
+    
+    /* Gradient Orbs */
+    .gradient-orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.5;
+      pointer-events: none;
+      z-index: -1;
+      animation: float 8s ease-in-out infinite;
+    }
+    
+    .gradient-orb-1 {
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, rgba(14, 165, 233, 0.3) 0%, transparent 70%);
+      top: -100px;
+      right: -100px;
+    }
+    
+    .gradient-orb-2 {
+      width: 300px;
+      height: 300px;
+      background: radial-gradient(circle, rgba(249, 115, 22, 0.2) 0%, transparent 70%);
+      bottom: -50px;
+      left: -50px;
+      animation-delay: 2s;
+    }
+    
+    .dark .gradient-orb {
+      opacity: 0.3;
+    }
+    
+    @keyframes float {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      33% { transform: translate(10px, -20px) scale(1.05); }
+      66% { transform: translate(-10px, 10px) scale(0.95); }
+    }
+    
+    /* Glassmorphism Cards */
+    .glass-card {
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(226, 232, 240, 0.8);
+    }
+    
+    .dark .glass-card {
+      background: rgba(30, 41, 59, 0.7);
+      border: 1px solid rgba(51, 65, 85, 0.8);
+    }
+    
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { 
+      background: linear-gradient(180deg, #0EA5E9, #0284C7); 
+      border-radius: 4px; 
+    }
+    ::-webkit-scrollbar-thumb:hover { 
+      background: linear-gradient(180deg, #0284C7, #0369A1); 
+    }
+  </style>
+</head>
+<body class="font-sans text-slate-900 dark:text-slate-100 bg-white dark:bg-dark-900 transition-colors duration-300">
+  
+  <!-- Background Elements -->
+  <div class="grid-bg"></div>
+  <div class="gradient-orb gradient-orb-1"></div>
+  <div class="gradient-orb gradient-orb-2"></div>
+  
+  <!-- Navbar -->
+  <nav class="fixed top-0 left-0 right-0 z-50 glass-card border-b border-slate-200/50 dark:border-slate-700/50">
+    <div class="max-w-7xl mx-auto px-6 py-4">
+      <div class="flex items-center justify-between">
+        <a href="#" class="flex items-center gap-3 group cursor-pointer">
+          <div class="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center shadow-lg shadow-primary-500/25 group-hover:shadow-primary-500/40 transition-shadow duration-300">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+            </svg>
+          </div>
+          <div>
+            <div class="font-display font-bold text-lg">JetBrains Redirector</div>
+            <div class="text-xs text-slate-500 dark:text-slate-400" id="headerVersion">Загрузка...</div>
+          </div>
+        </a>
+        
+        <div class="hidden md:flex items-center gap-8">
+          <a href="#features" class="text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors cursor-pointer">Возможности</a>
+          <a href="#how-it-works" class="text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors cursor-pointer">Как работает</a>
+          <a href="#install" class="text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors cursor-pointer">Установка</a>
+          <a href="#faq" class="text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors cursor-pointer">FAQ</a>
+        </div>
+        
+        <div class="flex items-center gap-4">
+          <a href="https://github.com/asdev-team/jetbrains-redirector" target="_blank" rel="noopener noreferrer" class="cursor-pointer">
+            <svg class="w-8 h-8 text-slate-600 dark:text-slate-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors" fill="currentColor" viewBox="0 0 24 24">
+              <path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+            </svg>
+          </a>
+          <button id="themeToggle" aria-label="Toggle theme" class="p-2 rounded-lg glass-card hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer">
+            <svg class="w-6 h-6 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+            </svg>
+            <svg class="w-6 h-6 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section class="min-h-screen flex items-center justify-center pt-20 px-6 relative overflow-hidden">
+    <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+      <div class="text-center lg:text-left relative z-10">
+        <!-- Badge -->
+        <div class="inline-flex items-center gap-2 px-4 py-2 glass-card rounded-full mb-8 cursor-pointer hover:shadow-lg hover:shadow-primary-500/20 transition-all duration-300">
+          <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+          <span class="text-sm font-medium font-display" id="versionBadge">Загрузка...</span>
+        </div>
+        
+        <!-- Headline -->
+        <h1 class="font-display text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight">
+          Обход блокировок<br>
+          <span class="bg-gradient-to-r from-primary-500 via-primary-400 to-accent-500 bg-clip-text text-transparent animate-gradient-x">JetBrains Plugins</span>
+        </h1>
+        
+        <!-- Description -->
+        <p class="text-lg md:text-xl text-slate-600 dark:text-slate-400 max-w-2xl mx-auto lg:mx-0 mb-10 leading-relaxed">
+          Автоматически перенаправляет ссылки на плагины и дистрибутивы JetBrains на рабочие зеркальные серверы для беспрепятственной загрузки
+        </p>
+        
+        <!-- CTA Buttons -->
+        <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start items-center mb-12">
+          <a href="#install" class="group w-full sm:w-auto px-10 py-4 bg-gradient-to-r from-primary-600 to-primary-500 hover:from-primary-500 hover:to-primary-400 text-white font-bold rounded-xl transition-all duration-300 cursor-pointer shadow-lg shadow-primary-500/25 hover:shadow-primary-500/40 hover:-translate-y-1 flex items-center justify-center gap-2">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+            </svg>
+            Установить бесплатно
+          </a>
+          <a href="https://github.com/asdev-team/jetbrains-redirector" target="_blank" rel="noopener noreferrer" class="group w-full sm:w-auto px-10 py-4 glass-card hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold rounded-xl border border-slate-200 dark:border-slate-700 hover:border-primary-500 dark:hover:border-primary-400 transition-all duration-300 cursor-pointer flex items-center justify-center gap-2">
+            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+              <path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+            </svg>
+            GitHub
+          </a>
+        </div>
+        
+        <!-- Stats -->
+        <div class="grid grid-cols-3 gap-4 max-w-lg mx-auto lg:mx-0">
+          <div class="glass-card rounded-2xl p-4 cursor-pointer hover:shadow-xl hover:shadow-primary-500/10 hover:-translate-y-1 transition-all duration-300">
+            <div class="text-2xl md:text-3xl font-display font-bold text-primary-600 dark:text-primary-400 mb-1">1000+</div>
+            <div class="text-xs text-slate-500 dark:text-slate-400">Пользователей</div>
+          </div>
+          <div class="glass-card rounded-2xl p-4 cursor-pointer hover:shadow-xl hover:shadow-primary-500/10 hover:-translate-y-1 transition-all duration-300">
+            <div class="text-2xl md:text-3xl font-display font-bold text-primary-600 dark:text-primary-400 mb-1">50K+</div>
+            <div class="text-xs text-slate-500 dark:text-slate-400">Редиректов</div>
+          </div>
+          <div class="glass-card rounded-2xl p-4 cursor-pointer hover:shadow-xl hover:shadow-primary-500/10 hover:-translate-y-1 transition-all duration-300">
+            <div class="text-2xl md:text-3xl font-display font-bold text-primary-600 dark:text-primary-400 mb-1">4.9★</div>
+            <div class="text-xs text-slate-500 dark:text-slate-400">Рейтинг</div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Hero Illustration -->
+      <div class="relative hidden lg:block">
+        <div class="relative w-full aspect-square max-w-lg mx-auto">
+          <!-- Background glow -->
+          <div class="absolute inset-0 bg-gradient-to-br from-primary-500/20 to-accent-500/20 rounded-full blur-3xl animate-pulse-slow"></div>
+          
+          <!-- Main illustration container -->
+          <div class="relative glass-card rounded-3xl p-8 h-full flex items-center justify-center animate-float">
+            <!-- Browser window -->
+            <div class="w-full bg-white dark:bg-dark-800 rounded-2xl shadow-2xl overflow-hidden">
+              <!-- Browser header -->
+              <div class="bg-slate-100 dark:bg-slate-700 px-4 py-3 flex items-center gap-2">
+                <div class="flex gap-1.5">
+                  <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                  <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                  <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                </div>
+                <div class="flex-1 bg-white dark:bg-dark-700 rounded-lg px-3 py-1.5 text-xs text-slate-400 font-mono">
+                  plugins.jetbrains.com
+                </div>
+              </div>
+              <!-- Browser content -->
+              <div class="p-6">
+                <!-- Download button (before) -->
+                <div class="mb-4">
+                  <div class="text-xs text-slate-400 mb-2">Без расширения:</div>
+                  <div class="flex items-center gap-3 p-3 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800">
+                    <div class="w-8 h-8 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center">
+                      <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                      </svg>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <div class="text-xs font-medium text-red-600 dark:text-red-400 truncate">plugins.jetbrains.com/files/...</div>
+                      <div class="text-xs text-red-400 dark:text-red-500">Заблокировано</div>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Arrow animation -->
+                <div class="flex justify-center mb-4">
+                  <div class="w-8 h-8 bg-gradient-to-br from-primary-500 to-primary-700 rounded-full flex items-center justify-center animate-bounce">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
+                    </svg>
+                  </div>
+                </div>
+                
+                <!-- Download button (after) -->
+                <div>
+                  <div class="text-xs text-slate-400 mb-2">С расширением:</div>
+                  <div class="flex items-center gap-3 p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800">
+                    <div class="w-8 h-8 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center">
+                      <svg class="w-6 h-6 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                      </svg>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <div class="text-xs font-medium text-emerald-600 dark:text-emerald-400 truncate">downloads.marketplace.jetbrains.com</div>
+                      <div class="text-xs text-emerald-500 dark:text-emerald-400">Работает! ✓</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Floating elements -->
+            <div class="absolute -top-4 -right-4 w-16 h-16 bg-gradient-to-br from-primary-500 to-primary-700 rounded-2xl flex items-center justify-center shadow-lg shadow-primary-500/30 animate-float" style="animation-delay: 0.5s">
+              <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              </svg>
+            </div>
+            
+            <div class="absolute -bottom-2 -left-2 w-12 h-12 bg-gradient-to-br from-accent-500 to-accent-700 rounded-xl flex items-center justify-center shadow-lg shadow-accent-500/30 animate-float" style="animation-delay: 1s">
+              <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section (Bento Grid) -->
+  <section id="features" class="py-24 px-6">
+    <div class="max-w-7xl mx-auto">
+      <div class="text-center mb-16">
+        <div class="inline-block px-4 py-2 bg-primary-100 dark:bg-primary-900/30 rounded-full text-primary-600 dark:text-primary-400 text-sm font-semibold mb-4">ВОЗМОЖНОСТИ</div>
+        <h2 class="font-display text-4xl md:text-5xl lg:text-6xl font-bold mb-6">Всё для быстрой загрузки</h2>
+        <p class="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
+          Расширение автоматически определяет ссылки и перенаправляет их на оптимальные CDN
+        </p>
+      </div>
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Feature 1 -->
+        <div class="glass-card rounded-2xl p-8 cursor-pointer hover:shadow-2xl hover:shadow-primary-500/10 hover:-translate-y-2 transition-all duration-300 group text-center">
+          <div class="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-primary-500/20 to-primary-700/20 rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-primary-500/20 transition-all duration-300">
+            <svg class="w-8 h-8 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+            </svg>
+          </div>
+          <h3 class="font-display text-2xl font-bold mb-3">Мгновенные редиректы</h3>
+          <p class="text-slate-600 dark:text-slate-400 leading-relaxed">
+            Автоматическое перенаправление ссылок без задержек и вмешательства пользователя
+          </p>
+        </div>
+
+        <!-- Feature 2 -->
+        <div class="glass-card rounded-2xl p-8 cursor-pointer hover:shadow-2xl hover:shadow-emerald-500/10 hover:-translate-y-2 transition-all duration-300 group text-center">
+          <div class="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-emerald-500/20 to-emerald-700/20 rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-emerald-500/20 transition-all duration-300">
+            <svg class="w-8 h-8 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+            </svg>
+          </div>
+          <h3 class="font-display text-2xl font-bold mb-3">Безопасность</h3>
+          <p class="text-slate-600 dark:text-slate-400 leading-relaxed">
+            Никаких сторонних серверов — только официальные CDN JetBrains
+          </p>
+        </div>
+
+        <!-- Feature 3 -->
+        <div class="glass-card rounded-2xl p-8 cursor-pointer hover:shadow-2xl hover:shadow-violet-500/10 hover:-translate-y-2 transition-all duration-300 group text-center">
+          <div class="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-violet-500/20 to-violet-700/20 rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-violet-500/20 transition-all duration-300">
+            <svg class="w-8 h-8 text-violet-600 dark:text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+            </svg>
+          </div>
+          <h3 class="font-display text-2xl font-bold mb-3">Статистика</h3>
+          <p class="text-slate-600 dark:text-slate-400 leading-relaxed">
+            Встроенная панель статистики с количеством редиректов и историей
+          </p>
+        </div>
+
+        <!-- Feature 4 -->
+        <div class="glass-card rounded-2xl p-8 cursor-pointer hover:shadow-2xl hover:shadow-amber-500/10 hover:-translate-y-2 transition-all duration-300 group text-center">
+          <div class="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-amber-500/20 to-amber-700/20 rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-amber-500/20 transition-all duration-300">
+            <svg class="w-8 h-8 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+          </div>
+          <h3 class="font-display text-2xl font-bold mb-3">Настройки</h3>
+          <p class="text-slate-600 dark:text-slate-400 leading-relaxed">
+            Whitelist доменов, правила редиректов, уведомления — всё настраивается
+          </p>
+        </div>
+
+        <!-- Feature 5 -->
+        <div class="glass-card rounded-2xl p-8 cursor-pointer hover:shadow-2xl hover:shadow-pink-500/10 hover:-translate-y-2 transition-all duration-300 group text-center">
+          <div class="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-pink-500/20 to-pink-700/20 rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-pink-500/20 transition-all duration-300">
+            <svg class="w-8 h-8 text-pink-600 dark:text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/>
+            </svg>
+          </div>
+          <h3 class="font-display text-2xl font-bold mb-3">Современный UI</h3>
+          <p class="text-slate-600 dark:text-slate-400 leading-relaxed">
+            Красивый и интуитивный интерфейс popup и страницы настроек
+          </p>
+        </div>
+
+        <!-- Feature 6 -->
+        <div class="glass-card rounded-2xl p-8 cursor-pointer hover:shadow-2xl hover:shadow-cyan-500/10 hover:-translate-y-2 transition-all duration-300 group text-center">
+          <div class="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-cyan-500/20 to-cyan-700/20 rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-cyan-500/20 transition-all duration-300">
+            <svg class="w-8 h-8 text-cyan-600 dark:text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+          </div>
+          <h3 class="font-display text-2xl font-bold mb-3">Автообновление</h3>
+          <p class="text-slate-600 dark:text-slate-400 leading-relaxed">
+            Расширение автоматически обновляется до последней версии
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How It Works Section -->
+  <section id="how-it-works" class="py-24 px-6 bg-slate-50/50 dark:bg-dark-800/50 backdrop-blur-sm">
+    <div class="max-w-7xl mx-auto">
+      <div class="text-center mb-16">
+        <div class="inline-block px-4 py-2 bg-primary-100 dark:bg-primary-900/30 rounded-full text-primary-600 dark:text-primary-400 text-sm font-semibold mb-4">КАК ЭТО РАБОТАЕТ</div>
+        <h2 class="font-display text-4xl md:text-5xl lg:text-6xl font-bold mb-6">3 шага к успешной загрузке</h2>
+      </div>
+      
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
+        <!-- Connection line (desktop only) -->
+        <div class="hidden md:block absolute top-24 left-0 right-0 h-0.5 bg-gradient-to-r from-primary-500/50 via-primary-500/50 to-primary-500/50"></div>
+        
+        <!-- Step 1 -->
+        <div class="relative group">
+          <div class="glass-card rounded-2xl p-8 text-center cursor-pointer hover:shadow-2xl hover:shadow-primary-500/10 hover:-translate-y-2 transition-all duration-300">
+            <!-- Illustration -->
+            <div class="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-primary-500/20 to-primary-700/20 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+              <svg class="w-8 h-8 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
+              </svg>
+            </div>
+            <h3 class="font-display text-2xl font-bold mb-3">Переход на сайт</h3>
+            <p class="text-slate-600 dark:text-slate-400 leading-relaxed">
+              Откройте plugins.jetbrains.com или download.jetbrains.com
+            </p>
+          </div>
+        </div>
+        
+        <!-- Step 2 -->
+        <div class="relative group">
+          <div class="glass-card rounded-2xl p-8 text-center cursor-pointer hover:shadow-2xl hover:shadow-accent-500/10 hover:-translate-y-2 transition-all duration-300">
+            <!-- Illustration -->
+            <div class="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-accent-500/20 to-accent-700/20 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+              <svg class="w-8 h-8 text-accent-600 dark:text-accent-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+              </svg>
+            </div>
+            <h3 class="font-display text-2xl font-bold mb-3">Обход блокировки</h3>
+            <p class="text-slate-600 dark:text-slate-400 leading-relaxed">
+              Расширение перенаправит на рабочие зеркальные серверы
+            </p>
+          </div>
+        </div>
+        
+        <!-- Step 3 -->
+        <div class="relative group">
+          <div class="glass-card rounded-2xl p-8 text-center cursor-pointer hover:shadow-2xl hover:shadow-emerald-500/10 hover:-translate-y-2 transition-all duration-300">
+            <!-- Illustration -->
+            <div class="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-emerald-500/20 to-emerald-700/20 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+              <svg class="w-8 h-8 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+              </svg>
+            </div>
+            <h3 class="font-display text-2xl font-bold mb-3">Успешная загрузка</h3>
+            <p class="text-slate-600 dark:text-slate-400 leading-relaxed">
+              Файл загружается без блокировок и ограничений
+            </p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Code Example -->
+      <div class="mt-16 max-w-4xl mx-auto">
+        <div class="glass-card rounded-2xl p-8 overflow-hidden cursor-pointer hover:shadow-2xl transition-shadow duration-300">
+          <div class="flex items-center gap-2 mb-6">
+            <div class="w-3 h-3 rounded-full bg-red-500"></div>
+            <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+            <div class="w-3 h-3 rounded-full bg-green-500"></div>
+          </div>
+          <div class="font-mono text-sm">
+            <div class="text-slate-400 mb-3">// Без расширения:</div>
+            <div class="text-red-400 mb-6 break-all">https://plugins.jetbrains.com/files/7724/988689/plugin.zip<br><span class="text-red-500">// Заблокировано</span></div>
+            <div class="text-slate-400 mb-3">// С расширением:</div>
+            <div class="text-emerald-400 break-all">https://downloads.marketplace.jetbrains.com/files/7724/988689/plugin.zip<br><span class="text-emerald-500">// Работает!</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Install Section -->
+  <section id="install" class="py-24 px-6">
+    <div class="max-w-7xl mx-auto">
+      <div class="text-center mb-16">
+        <div class="inline-block px-4 py-2 bg-primary-100 dark:bg-primary-900/30 rounded-full text-primary-600 dark:text-primary-400 text-sm font-semibold mb-4">УСТАНОВКА</div>
+        <h2 class="font-display text-4xl md:text-5xl lg:text-6xl font-bold mb-6">Начните использовать за 2 минуты</h2>
+      </div>
+      
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+        <!-- Steps -->
+        <div class="space-y-6">
+          <!-- Step 1 -->
+          <div class="glass-card rounded-2xl p-6 flex gap-6 cursor-pointer hover:shadow-xl hover:shadow-primary-500/10 hover:-translate-y-1 transition-all duration-300 group">
+            <div class="flex-shrink-0 w-16 h-16 bg-gradient-to-br from-primary-500/20 to-primary-700/20 rounded-2xl flex items-center justify-center group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-primary-500/20 transition-all duration-300">
+              <svg class="w-8 h-8 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+              </svg>
+            </div>
+            <div>
+              <h3 class="font-display text-xl font-bold mb-2">Скачайте расширение</h3>
+              <p class="text-slate-600 dark:text-slate-400 leading-relaxed">
+                Нажмите кнопку ниже для загрузки CRX файла или ZIP архива
+              </p>
+            </div>
+          </div>
+          
+          <!-- Step 2 -->
+          <div class="glass-card rounded-2xl p-6 flex gap-6 cursor-pointer hover:shadow-xl hover:shadow-accent-500/10 hover:-translate-y-1 transition-all duration-300 group">
+            <div class="flex-shrink-0 w-16 h-16 bg-gradient-to-br from-accent-500/20 to-accent-700/20 rounded-2xl flex items-center justify-center group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-accent-500/20 transition-all duration-300">
+              <svg class="w-8 h-8 text-accent-600 dark:text-accent-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+              </svg>
+            </div>
+            <div>
+              <h3 class="font-display text-xl font-bold mb-2">Откройте chrome://extensions/</h3>
+              <p class="text-slate-600 dark:text-slate-400 leading-relaxed">
+                Включите «Режим разработчика» в правом верхнем углу
+              </p>
+            </div>
+          </div>
+          
+          <!-- Step 3 -->
+          <div class="glass-card rounded-2xl p-6 flex gap-6 cursor-pointer hover:shadow-xl hover:shadow-violet-500/10 hover:-translate-y-1 transition-all duration-300 group">
+            <div class="flex-shrink-0 w-16 h-16 bg-gradient-to-br from-violet-500/20 to-violet-700/20 rounded-2xl flex items-center justify-center group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-violet-500/20 transition-all duration-300">
+              <svg class="w-8 h-8 text-violet-600 dark:text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+              </svg>
+            </div>
+            <div>
+              <h3 class="font-display text-xl font-bold mb-2">Перетащите файл</h3>
+              <p class="text-slate-600 dark:text-slate-400 leading-relaxed">
+                Перетащите скачанный CRX файл в окно браузера для установки
+              </p>
+            </div>
+          </div>
+          
+          <!-- Step 4 -->
+          <div class="glass-card rounded-2xl p-6 flex gap-6 cursor-pointer hover:shadow-xl hover:shadow-emerald-500/10 hover:-translate-y-1 transition-all duration-300 group">
+            <div class="flex-shrink-0 w-16 h-16 bg-gradient-to-br from-emerald-500/20 to-emerald-700/20 rounded-2xl flex items-center justify-center group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-emerald-500/20 transition-all duration-300">
+              <svg class="w-8 h-8 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+            <div>
+              <h3 class="font-display text-xl font-bold mb-2">Готово!</h3>
+              <p class="text-slate-600 dark:text-slate-400 leading-relaxed">
+                Расширение готово к работе. Посетите plugins.jetbrains.com для проверки
+              </p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- CTA Card -->
+        <div class="relative">
+          <div class="absolute inset-0 bg-gradient-to-br from-primary-500/30 to-accent-500/30 rounded-3xl blur-3xl animate-pulse-slow"></div>
+          <div class="relative glass-card rounded-3xl p-10 md:p-14 text-center cursor-pointer hover:shadow-2xl hover:shadow-primary-500/20 transition-all duration-300 overflow-hidden">
+            <!-- Background pattern -->
+            <div class="absolute inset-0 opacity-5">
+              <div class="absolute inset-0" style="background-image: linear-gradient(rgba(14, 165, 233, 0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(14, 165, 233, 0.3) 1px, transparent 1px); background-size: 20px 20px;"></div>
+            </div>
+            
+            <div class="relative">
+              <!-- Icon -->
+              <div class="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-primary-500/20 to-primary-700/20 rounded-xl flex items-center justify-center">
+                <svg class="w-8 h-8 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+              </div>
+              
+              <h3 class="font-display text-3xl md:text-4xl font-bold mb-4">Установить JetBrains Redirector</h3>
+              <p class="text-slate-600 dark:text-slate-300 mb-8 text-lg">Бесплатно • Open Source • Без рекламы</p>
+              <a href="https://github.com/asdev-team/jetbrains-redirector/releases/latest" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center gap-3 px-10 py-4 bg-gradient-to-r from-primary-600 to-primary-500 hover:from-primary-500 hover:to-primary-400 text-white font-bold rounded-xl transition-all duration-300 cursor-pointer shadow-lg shadow-primary-500/25 hover:shadow-primary-500/40 hover:-translate-y-1">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                Скачать последнюю версию
+              </a>
+              
+              <!-- Features -->
+              <div class="mt-8 flex flex-wrap justify-center gap-3 text-sm text-slate-500 dark:text-slate-400">
+                <span class="flex items-center gap-1.5">
+                  <svg class="w-5 h-5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                  </svg>
+                  Manifest V3
+                </span>
+                <span class="flex items-center gap-1.5">
+                  <svg class="w-5 h-5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                  </svg>
+                  Автообновление
+                </span>
+                <span class="flex items-center gap-1.5">
+                  <svg class="w-5 h-5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                  </svg>
+                  Open Source
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ Section -->
+  <section id="faq" class="py-24 px-6 bg-slate-50/50 dark:bg-dark-800/50 backdrop-blur-sm">
+    <div class="max-w-4xl mx-auto">
+      <div class="text-center mb-16">
+        <div class="inline-block px-4 py-2 bg-primary-100 dark:bg-primary-900/30 rounded-full text-primary-600 dark:text-primary-400 text-sm font-semibold mb-4">FAQ</div>
+        <h2 class="font-display text-4xl md:text-5xl lg:text-6xl font-bold mb-6">Частые вопросы</h2>
+      </div>
+      
+      <div class="space-y-4">
+        <!-- FAQ Item 1 -->
+        <div class="faq-item glass-card rounded-2xl overflow-hidden cursor-pointer group">
+          <button class="w-full px-8 py-6 text-left flex items-center justify-between gap-4" aria-expanded="false">
+            <span class="font-display text-lg font-semibold">Что делает это расширение?</span>
+            <svg class="w-8 h-8 text-slate-400 group-hover:text-primary-500 transition-all duration-300 transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </button>
+          <div class="px-8 pb-6 text-slate-600 dark:text-slate-400 leading-relaxed hidden">
+            Расширение автоматически перенаправляет ссылки загрузки плагинов JetBrains с plugins.jetbrains.com на рабочие зеркальные серверы (downloads.marketplace.jetbrains.com, download-cdn.jetbrains.com), что позволяет обходить блокировки и ограничения доступа.
+          </div>
+        </div>
+        
+        <!-- FAQ Item 2 -->
+        <div class="faq-item glass-card rounded-2xl overflow-hidden cursor-pointer group">
+          <button class="w-full px-8 py-6 text-left flex items-center justify-between gap-4" aria-expanded="false">
+            <span class="font-display text-lg font-semibold">Безопасно ли это расширение?</span>
+            <svg class="w-8 h-8 text-slate-400 group-hover:text-primary-500 transition-all duration-300 transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </button>
+          <div class="px-8 pb-6 text-slate-600 dark:text-slate-400 leading-relaxed hidden">
+            Да! Расширение имеет открытый исходный код и не отправляет никакие данные на сторонние серверы. Все редиректы выполняются только на официальные зеркальные серверы JetBrains. Вы можете проверить код в GitHub репозитории.
+          </div>
+        </div>
+        
+        <!-- FAQ Item 3 -->
+        <div class="faq-item glass-card rounded-2xl overflow-hidden cursor-pointer group">
+          <button class="w-full px-8 py-6 text-left flex items-center justify-between gap-4" aria-expanded="false">
+            <span class="font-display text-lg font-semibold">Как обновляется расширение?</span>
+            <svg class="w-8 h-8 text-slate-400 group-hover:text-primary-500 transition-all duration-300 transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </button>
+          <div class="px-8 pb-6 text-slate-600 dark:text-slate-400 leading-relaxed hidden">
+            Расширение поддерживает автоматическое обновление. При выпуске новой версии Chrome автоматически загрузит и установит обновление. Также вы можете вручную скачать новую версию из раздела Releases на GitHub.
+          </div>
+        </div>
+        
+        <!-- FAQ Item 4 -->
+        <div class="faq-item glass-card rounded-2xl overflow-hidden cursor-pointer group">
+          <button class="w-full px-8 py-6 text-left flex items-center justify-between gap-4" aria-expanded="false">
+            <span class="font-display text-lg font-semibold">Можно ли отключить редирект для определённых доменов?</span>
+            <svg class="w-8 h-8 text-slate-400 group-hover:text-primary-500 transition-all duration-300 transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </button>
+          <div class="px-8 pb-6 text-slate-600 dark:text-slate-400 leading-relaxed hidden">
+            Да, в настройках расширения есть whitelist — список доменов, для которых редирект не будет применяться. Также можно временно отключить расширение через popup панель.
+          </div>
+        </div>
+        
+        <!-- FAQ Item 5 -->
+        <div class="faq-item glass-card rounded-2xl overflow-hidden cursor-pointer group">
+          <button class="w-full px-8 py-6 text-left flex items-center justify-between gap-4" aria-expanded="false">
+            <span class="font-display text-lg font-semibold">Как посмотреть статистику редиректов?</span>
+            <svg class="w-8 h-8 text-slate-400 group-hover:text-primary-500 transition-all duration-300 transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </button>
+          <div class="px-8 pb-6 text-slate-600 dark:text-slate-400 leading-relaxed hidden">
+            Откройте popup панель расширения (кликните по иконке в панели браузера) или перейдите на страницу настроек через chrome://extensions/. Там вы увидите общую статистику, статистику по правилам и историю редиректов.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- GitHub Section -->
+  <section class="py-24 px-6">
+    <div class="max-w-4xl mx-auto text-center">
+      <h2 class="font-display text-3xl md:text-4xl font-bold mb-4">Open Source на GitHub</h2>
+      <p class="text-lg text-slate-600 dark:text-slate-400 mb-8">
+        Исходный код открыт. Pull requests приветствуются!
+      </p>
+      <div class="flex flex-wrap justify-center gap-4">
+        <a href="https://github.com/asdev-team/jetbrains-redirector" target="_blank" rel="noopener noreferrer" class="glass-card px-6 py-4 rounded-2xl font-medium hover:shadow-xl hover:shadow-primary-500/10 hover:-translate-y-1 transition-all duration-300 cursor-pointer flex items-center gap-3">
+          <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
+            <path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+          </svg>
+          <span id="githubStars">Загрузка...</span>
+        </a>
+        <a href="https://github.com/asdev-team/jetbrains-redirector/releases" target="_blank" rel="noopener noreferrer" class="glass-card px-6 py-4 rounded-2xl font-medium hover:shadow-xl hover:shadow-primary-500/10 hover:-translate-y-1 transition-all duration-300 cursor-pointer flex items-center gap-3">
+          <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 22V12h6v10M9 22h6"/>
+          </svg>
+          <span id="latestRelease">Загрузка...</span>
+        </a>
+        <a href="https://github.com/asdev-team/jetbrains-redirector/issues" target="_blank" rel="noopener noreferrer" class="glass-card px-6 py-4 rounded-2xl font-medium hover:shadow-xl hover:shadow-primary-500/10 hover:-translate-y-1 transition-all duration-300 cursor-pointer flex items-center gap-3">
+          <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          Issues
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="py-12 px-6 border-t border-slate-200 dark:border-slate-800">
+    <div class="max-w-7xl mx-auto">
+      <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center shadow-lg shadow-primary-500/25">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+            </svg>
+          </div>
+          <div>
+            <div class="font-display font-bold">JetBrains Redirector</div>
+            <div class="text-xs text-slate-500 dark:text-slate-400">© 2026 Not affiliated with JetBrains s.r.o.</div>
+          </div>
+        </div>
+        
+        <div class="flex flex-wrap justify-center gap-6 text-sm text-slate-600 dark:text-slate-400">
+          <a href="https://github.com/asdev-team/jetbrains-redirector" target="_blank" rel="noopener noreferrer" class="hover:text-primary-600 dark:hover:text-primary-400 transition-colors cursor-pointer">GitHub</a>
+          <a href="https://github.com/asdev-team/jetbrains-redirector/issues" target="_blank" rel="noopener noreferrer" class="hover:text-primary-600 dark:hover:text-primary-400 transition-colors cursor-pointer">Issues</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Theme toggle
+    const themeToggle = document.getElementById('themeToggle');
+    const html = document.documentElement;
+
+    const savedTheme = localStorage.getItem('theme');
+    const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+    if (savedTheme === 'dark' || (!savedTheme && systemDark)) {
+      html.classList.add('dark');
+    }
+
+    themeToggle.addEventListener('click', () => {
+      html.classList.toggle('dark');
+      localStorage.setItem('theme', html.classList.contains('dark') ? 'dark' : 'light');
+    });
+
+    // FAQ accordion — chevron отражает состояние открыт/закрыт, а не hover
+    document.querySelectorAll('.faq-item').forEach(faqItem => {
+      const button = faqItem.querySelector('button');
+      const answer = faqItem.querySelector('button + div');
+
+      if (!button || !answer) return;
+
+      button.addEventListener('click', () => {
+        const isExpanded = button.getAttribute('aria-expanded') === 'true';
+
+        // Закрываем все
+        document.querySelectorAll('.faq-item').forEach(item => {
+          const btn = item.querySelector('button');
+          const ans = item.querySelector('button + div');
+          const ico = btn?.querySelector('svg');
+          btn?.setAttribute('aria-expanded', 'false');
+          ans?.classList.add('hidden');
+          ico?.classList.remove('rotate-180', 'text-primary-500');
+          ico?.classList.add('text-slate-400');
+        });
+
+        // Открываем нажатый, если он был закрыт
+        if (!isExpanded) {
+          const icon = button.querySelector('svg');
+          button.setAttribute('aria-expanded', 'true');
+          answer.classList.remove('hidden');
+          icon?.classList.add('rotate-180', 'text-primary-500');
+          icon?.classList.remove('text-slate-400');
+        }
+      });
+    });
+
+    // GitHub API: один запрос к releases/latest обновляет все три элемента версии
+    async function fetchReleaseInfo() {
+      try {
+        const response = await fetch('https://api.github.com/repos/asdev-team/jetbrains-redirector/releases/latest');
+        const data = await response.json();
+        const version = (data.name || data.tag_name || 'v3.0.1').replace(/^v/, '');
+        document.getElementById('versionBadge').textContent = `v${version} — Стабильный релиз`;
+        document.getElementById('headerVersion').textContent = `v${version}`;
+        document.getElementById('latestRelease').textContent = `v${version}`;
+      } catch {
+        document.getElementById('versionBadge').textContent = 'v3.0.1 — Стабильный релиз';
+        document.getElementById('headerVersion').textContent = 'v3.0.1';
+        document.getElementById('latestRelease').textContent = 'Releases';
+      }
+    }
+
+    async function fetchGitHubStars() {
+      try {
+        const response = await fetch('https://api.github.com/repos/asdev-team/jetbrains-redirector');
+        const data = await response.json();
+        const stars = data.stargazers_count || 0;
+        document.getElementById('githubStars').textContent = stars >= 1000 ? `${(stars / 1000).toFixed(1)}k ⭐` : `${stars} ⭐`;
+      } catch {
+        document.getElementById('githubStars').textContent = '⭐';
+      }
+    }
+
+    fetchReleaseInfo();
+    fetchGitHubStars();
+  </script>
+</body>
+</html>

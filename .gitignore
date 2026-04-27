@@ -1,0 +1,66 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+dist/
+build/
+
+# Documentation (optional - commit if you want)
+docs-site/
+
+# Private keys for CRX3 signing (CRITICAL - never commit)
+scripts/private-key.pem
+scripts/public-key.pem
+keys/*.pem
+keys/*.der
+!keys/.gitkeep
+
+# Generated icons (keep SVG, ignore PNG)
+public/icons/*.png
+!public/icons/icon16.png
+!public/icons/icon48.png
+!public/icons/icon128.png
+
+# Dist icons (ignore SVG)
+dist/icons/icon.svg
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs_*/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Package locks (keep only one - commit package-lock.json)
+yarn.lock
+pnpm-lock.yaml
+
+# Testing
+coverage/
+
+# Temporary files
+*.tmp
+*.temp
+/.idea/
+/CHANGELOG.md
+/CLAUDE.md
+/CONTRIBUTING.md
+/SECURITY.md

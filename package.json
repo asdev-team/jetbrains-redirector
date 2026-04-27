@@ -1,0 +1,46 @@
+{
+  "name": "jetbrains-redirector",
+  "version": "1.0.0",
+  "description": "Автоматический обход блокировок для загрузки плагинов JetBrains через зеркальные серверы",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:asdev-team/jetbrains-redirector.git"
+  },
+  "bugs": {
+    "url": "https://github.com/asdev-team/jetbrains-redirector/issues"
+  },
+  "homepage": "https://asdev-team.github.io/jetbrains-redirector/",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build -c vite.content.config.ts && vite build",
+    "build:watch": "vite build --watch",
+    "package": "node scripts/package.js",
+    "package:build": "node scripts/package.js --build-only",
+    "package:only": "node scripts/package.js --package-only",
+    "postbuild": "node scripts/post-build.js"
+  },
+  "keywords": [
+    "chrome-extension",
+    "jetbrains",
+    "redirect",
+    "marketplace"
+  ],
+  "author": "TM Project <tm-project@asdev.ru>",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/chrome": "^0.0.260",
+    "@types/node": "^20.11.0",
+    "@types/react": "^18.2.48",
+    "@types/react-dom": "^18.2.18",
+    "@vitejs/plugin-react": "^4.2.1",
+    "archiver": "^6.0.1",
+    "crx3": "^1.1.3",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "rimraf": "^5.0.5",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.12"
+  },
+  "type": "module"
+}

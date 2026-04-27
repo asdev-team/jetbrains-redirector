@@ -1,0 +1,68 @@
+{
+  "manifest_version": 3,
+  "name": "JetBrains URL Redirector",
+  "version": "1.0.0",
+  "description": "Автоматический обход блокировок для загрузки плагинов JetBrains через зеркальные серверы",
+  "update_url": "https://asdev-team.github.io/jetbrains-redirector/updates.xml",
+  "permissions": [
+    "declarativeNetRequest",
+    "webNavigation",
+    "webRequest",
+    "storage",
+    "tabs",
+    "notifications"
+  ],
+  "host_permissions": [
+    "https://plugins.jetbrains.com/*",
+    "https://downloads.marketplace.jetbrains.com/*",
+    "https://download.jetbrains.com/*",
+    "https://download-cdn.jetbrains.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://plugins.jetbrains.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "JetBrains Redirector",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; style-src 'self' 'unsafe-inline'"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "icons/*"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ]
+}
