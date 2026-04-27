@@ -39,7 +39,8 @@ jobs:
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
 
           if [ -z "$LAST_TAG" ]; then
-            NEW="1.0.0"
+            # Первый релиз — тегируем текущую версию без изменений
+            NEW="$CURRENT"
           else
             COMMITS=$(git log "$LAST_TAG..HEAD" --oneline)
             if [ -z "$COMMITS" ]; then
@@ -48,36 +49,39 @@ jobs:
               exit 0
             fi
 
-            MAJOR=$(echo $CURRENT | cut -d. -f1)
-            MINOR=$(echo $CURRENT | cut -d. -f2)
-            PATCH=$(echo $CURRENT | cut -d. -f3)
+            # Версию считаем от последнего тега, а не от package.json
+            TAG_VER="${LAST_TAG#v}"
+            TAG_MAJOR=$(echo $TAG_VER | cut -d. -f1)
+            TAG_MINOR=$(echo $TAG_VER | cut -d. -f2)
+            TAG_PATCH=$(echo $TAG_VER | cut -d. -f3)
 
             if echo "$COMMITS" | grep -qiE "feat(\(|!|:)"; then
-              NEW="$MAJOR.$((MINOR + 1)).0"
+              NEW="$TAG_MAJOR.$((TAG_MINOR + 1)).0"
             else
-              NEW="$MAJOR.$MINOR.$((PATCH + 1))"
+              NEW="$TAG_MAJOR.$TAG_MINOR.$((TAG_PATCH + 1))"
             fi
           fi
 
           echo "Bumping $CURRENT → $NEW"
 
-          # Обновляем package.json
-          npm version "$NEW" --no-git-tag-version
-
-          # Обновляем manifest.json
-          node -e "
-            const fs = require('fs');
-            const m = JSON.parse(fs.readFileSync('public/manifest.json', 'utf8'));
-            m.version = '$NEW';
-            fs.writeFileSync('public/manifest.json', JSON.stringify(m, null, 2) + '\n');
-          "
-
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
-          git add package.json package-lock.json public/manifest.json
-          git commit -m "chore(release): v$NEW [skip ci]"
+
+          # Обновляем файлы только если версия изменилась
+          if [ "$NEW" != "$CURRENT" ]; then
+            npm version "$NEW" --no-git-tag-version
+            node -e "
+              const fs = require('fs');
+              const m = JSON.parse(fs.readFileSync('public/manifest.json', 'utf8'));
+              m.version = '$NEW';
+              fs.writeFileSync('public/manifest.json', JSON.stringify(m, null, 2) + '\n');
+            "
+            git add package.json package-lock.json public/manifest.json
+            git commit -m "chore(release): v$NEW [skip ci]"
+            git push origin main
+          fi
+
           git tag "v$NEW"
-          git push origin main
           git push origin "v$NEW"
 
           echo "version=$NEW" >> $GITHUB_OUTPUT
