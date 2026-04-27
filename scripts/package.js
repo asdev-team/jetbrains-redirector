@@ -65,7 +65,7 @@ function ensureDirs() {
 
 function getVersion() {
   if (VERSION_ARG && !VERSION_ARG.startsWith('--')) {
-    return VERSION_ARG;
+    return VERSION_ARG.replace(/^v/, '');
   }
   
   const manifestPath = join(DIST_DIR, 'manifest.json');
