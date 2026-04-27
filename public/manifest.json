@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "JetBrains URL Redirector",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Автоматический обход блокировок для загрузки плагинов JetBrains через зеркальные серверы",
   "update_url": "https://asdev-team.github.io/jetbrains-redirector/updates.xml",
   "permissions": [

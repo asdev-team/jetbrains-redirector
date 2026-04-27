@@ -1,6 +1,6 @@
 {
   "name": "jetbrains-redirector",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Автоматический обход блокировок для загрузки плагинов JetBrains через зеркальные серверы",
   "private": true,
   "repository": {
